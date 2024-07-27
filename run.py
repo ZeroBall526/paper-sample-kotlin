@@ -3,7 +3,7 @@
 # Server directory name
 DIR = ".Server"
 
-# please input the server download api url
+# Please input the server download link api url
 API_URL = "https://qing762.is-a.dev/api/papermc"
 
 # Server version type (if you type 'latest' script will download the latest version in api)
@@ -30,6 +30,7 @@ ENABLE_COMMAND_BLOCK = True
 DEFAULT_PLUGINS = [
     # AutoReloader
     'https://github.com/monun/auto-reloader/releases/download/0.0.6/auto-reloader-0.0.6.jar',
+    # WorldEdit
     'https://cdn.modrinth.com/data/1u6JkXh5/versions/vMrPkmgF/worldedit-bukkit-7.3.4.jar'
 ]
 
@@ -37,6 +38,7 @@ DEFAULT_PLUGINS = [
 WHITELIST = True
 
 # End of configuration #
+# Setup code
 
 import requests
 import os
@@ -44,7 +46,6 @@ import json
 import subprocess
 
 
-# Setup code
 class deploy:
     def __init__(self, DIR='.Server', API_URL='', SERVER_VERSION='latest', RAM=4, MAX_PLAYER=20, PORT=25565,
                  USE_DEBUG_PORT=False, ENABLE_COMMAND_BLOCK=False, DEFAULT_PLUGINS=None, WHITELIST=False):
@@ -149,7 +150,13 @@ class deploy:
             properties.write(w + "\n")
         properties.close()
 
-        # TODO:redesign download setting file name code
+        self.preinstallation()
+
+        # if whitelist is turn on make whitelist file
+        if self.WHITELIST is True:
+            self.whitelist()
+
+    def preinstallation(self):
         # install default plugins
         print("Downloading preinstallation plugins...")
         if not os.path.exists(f"{DIR}/plugins"):
@@ -160,14 +167,10 @@ class deploy:
                 pluginfile = requests.get(plugin, timeout=30)
                 filename = plugin.split("/")[-1]
 
-                with open(f'{DIR}/plugins/{filename}', "wb")as file:
+                with open(f'{DIR}/plugins/{filename}', "wb") as file:
                     file.write(pluginfile.content)
         except Exception or ModuleNotFoundError:
             raise Exception("error occurred while download plugin!")
-
-        # if whitelist is turn on make whitelist file
-        if self.WHITELIST is True:
-            self.whitelist()
 
     def run(self):
         # run the server shell file
@@ -213,7 +216,7 @@ class deploy:
                 except Exception as e:
                     print(e)
                     print(
-                        '\033[31m' + "error occured while getting user info! Please check Player name or server status")
+                        '\033[31m' + "error occurred while getting user info! Please check player name or server status")
                     print('\033[31m' + 'Fail to make whitelist file')
                     return
 
@@ -237,22 +240,78 @@ class deploy:
             else:
                 break
 
+    #copy built plugin file
+    def copy_build_file(self):
+        import shutil
+
+        print("Copying built jar file..")
+
+        if os.path.exists("build/libs") and os.path.exists(f"{DIR}/plugins"):
+            file_list = [file for file in os.listdir("build/libs") if file.endswith(".jar")]
+            print(f"Found jar file list : {file_list}")
+
+            if len(file_list) > 1:
+                print("\nFound multiple jar file, Select which you want copy file")
+                for num, file in enumerate(file_list):
+                    print(f"{num}. {file}")
+                print("Enter. SKIP")
+
+                while True:
+                    choice = input("\nSelect number \n> ")
+
+                    if choice != "":
+                        try:
+                            select = file_list[int(choice)]
+
+                            shutil.copy(f'build/libs/{select}', f'{DIR}/plugins/{select}')
+                            break
+                        except Exception:
+                            print("Error occurred while processing.")
+                            print("Please check selected number or file & folder(e.g.dir name) status")
+
+                    else:
+                        print('\033[33m' + "Process Canceled")
+                        break
+            elif len(file_list) == 1:
+                shutil.copy(f'build/libs/{file_list[0]}', f'{DIR}/plugins/{file_list[0]}')
+            else:
+                print('\033[33m' + "Can't find built jar file! SKIPPED...")
+        else:
+            print('\033[33m' + "Can't find tasking directory! SKIPPED...")
+        print('\033[0m', end='')
+
 
 # DEBUG MODE
-SCRIPT_MODE = "install"
+SCRIPT_MODE = "custom"
 
 INSTALL_AFTER_RUN = True
+
+# check build/libs/ jar file and copy it
+COPY_BUILD_PLUGIN = True
 
 i = deploy(DIR, API_URL, SERVER_VERSION, RAM, MAX_PLAYER, PORT, USE_DEBUG_PORT, ENABLE_COMMAND_BLOCK, DEFAULT_PLUGINS,
            WHITELIST)
 
+# TODO : make status file & check status file
+if SCRIPT_MODE == "normal":
+    if os.path.exists(DIR) and os.path.exists(f'{DIR}/run.bat'):
+        SCRIPT_MODE = "run"
+    else:
+        SCRIPT_MODE = "install"
+
 if SCRIPT_MODE == "install":
     i.install()
+    if COPY_BUILD_PLUGIN is True:
+        i.copy_build_file()
     if INSTALL_AFTER_RUN is True:
         i.run()
 elif SCRIPT_MODE == "run":
     i.run()
 elif SCRIPT_MODE == "whitelist":
     i.whitelist()
+elif SCRIPT_MODE == "custom":
+    i.copy_build_file()
+    # type want specific function
+    pass
 else:
     raise Exception("Script mode select error! Please check debug option")

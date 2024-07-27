@@ -40,8 +40,8 @@ tasks {
         }
     }
 
-    //TODO : fix shadowJar output
     shadowJar{
+        outputs.upToDateWhen { false }
         //install or update the server dir
         archiveClassifier.set("")
 
@@ -63,10 +63,11 @@ tasks {
                         into(plugins)
                 }
 
-                update.resolve("UPDATE").deleteOnExit()
+                val check = update.resolve("RELOAD").delete()
+                println("update status : $check")
             }
         }
 
-        // install in the custom server directory
+        // TODO: install in the custom server directory
     }
 }
