@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -27,14 +28,23 @@ java {
 
 tasks {
     withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = JavaVersion.VERSION_21.toString()
+        compilerOptions{
+            jvmTarget = JvmTarget.JVM_21
+        }
+
+        // deprecated
+        //kotlinOptions.jvmTarget = JavaVersion.VERSION_21.toString()
     }
+
     javadoc {
         options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything
     }
 
     //auto write plugin.yml (exclude command)
     processResources{
+        // if you need change plugin.yml use this code
+        //outputs.upToDateWhen { false }
+
         filesMatching("plugin.yml"){
             expand(project.properties)
         }
@@ -47,6 +57,8 @@ tasks {
 
         doLast{
             val folder = file(rootProject.projectDir.resolve(project.property("server_dir")as String)).exists()
+            val customDir = project.properties["custom_dir"] as String?
+
             println("server folder exists : ${folder}")
 
             if (folder){
@@ -66,8 +78,36 @@ tasks {
                 val check = update.resolve("RELOAD").delete()
                 println("update status : $check")
             }
-        }
 
-        // TODO: install in the custom server directory
+            if (!customDir.isNullOrEmpty()) {
+                try{
+                    // install in the custom server directory
+                    val customizer = File("$customDir")
+                    val plugins = rootProject.file("${customizer}/plugins")
+                    val update = plugins.resolve("update")
+
+                    copy {
+                        from(archiveFile)
+
+                        if (plugins.resolve(archiveFileName.get()).exists())
+                            if (update.exists()) {
+                                into(update)
+                            }else{
+                                into(plugins)
+                            }
+                        else
+                            into(plugins)
+                    }
+
+                    update.resolve("RELOAD").delete()
+                    println("custom directory server update status : complete")
+                }catch ( e : Exception){
+                    println("error occurred while copying file!")
+                    println("custom directory dir : $customDir")
+                    e.printStackTrace()
+                }
+
+            }
+        }
     }
 }
